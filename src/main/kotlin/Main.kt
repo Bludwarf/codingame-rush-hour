@@ -1,5 +1,4 @@
-import java.io.*
-import java.math.*
+import com.codingame.rushhour.*
 import java.util.*
 
 /**
@@ -11,22 +10,28 @@ fun main(args: Array<String>) {
     val n = input.nextInt() // Number of vehicles
 
     // game loop
-    var step = 0
     while (true) {
-        for (i in 0 until n) {
-            val id = input.nextInt() // Id of the vehicle
-            val x = input.nextInt() // Horizontal coordinate of the vehicle
-            val y = input.nextInt() // Vertical coordinate of the vehicle
-            val length = input.nextInt() // Length of the vehicle, in cells
-            val axis = input.next() // Axis of the vehicle : H (horizontal) or V (vertical)
-        }
 
-        if (step <= 0) {
-            println("1 DOWN") // ID DIRECTION
-        } else {
-            println("0 RIGHT")
-        }
+        val vehiclesCoordinates = sequence {
+            for (i in 0 until n) {
+                val id = input.nextInt() // Id of the vehicle
+                val x = input.nextInt() // Horizontal coordinate of the vehicle
+                val y = input.nextInt() // Vertical coordinate of the vehicle
+                val coordinates = Coordinates(x, y)
+                val length = input.nextInt() // Length of the vehicle, in cells
+                val axis = input.next() // Axis of the vehicle : H (horizontal) or V (vertical)
+                val vehicle = Vehicle(id, length, Axis.fromString(axis))
+                yield(vehicle to coordinates)
+            }
+        }.toMap()
 
-        ++step
+        val initialState = State(vehiclesCoordinates)
+        val actionResolver = ActionResolver(initialState)
+        val action = actionResolver.resolveNextAction()
+        println(action)
     }
+}
+
+fun debug(x: Any) {
+    System.err.println(x)
 }
