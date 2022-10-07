@@ -1,5 +1,7 @@
 package com.codingame.rushhour
 
+import java.lang.Math.abs
+
 data class Coordinates(val x: Int, val y: Int) : Comparable<Coordinates> {
     fun next(direction: Direction): Coordinates {
         return when (direction) {
@@ -26,5 +28,12 @@ data class Coordinates(val x: Int, val y: Int) : Comparable<Coordinates> {
     }
 
     val areValid by lazy { this in MIN..MAX }
+
+    fun distanceFrom(other: Coordinates, axis: Axis): Int {
+        return when(axis) {
+            Axis.HORIZONTAL -> kotlin.math.abs(x - other.x)
+            Axis.VERTICAL -> kotlin.math.abs(y - other.y)
+        }
+    }
 
 }

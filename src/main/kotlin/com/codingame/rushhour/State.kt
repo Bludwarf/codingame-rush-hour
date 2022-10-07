@@ -1,6 +1,12 @@
 package com.codingame.rushhour
 
-data class State(val vehicleCoordinates: Map<Vehicle, Coordinates>) {
+import com.codingame.DirectedEdge
+import com.codingame.Node
+import debug
+
+val EXIT = Coordinates(Coordinates.MAX.x, Coordinates.MAX.y / 2)
+
+data class State(val vehicleCoordinates: Map<Vehicle, Coordinates>) : Node.State {
     fun with(vehicle: Vehicle): Builder {
         return Builder(vehicle)
     }
@@ -25,4 +31,46 @@ data class State(val vehicleCoordinates: Map<Vehicle, Coordinates>) {
         }
 
     }
+
+    override val isFinal: Boolean get() = redVehicleDistanceFromExit == 0
+
+    private val redVehicle: Vehicle by lazy {
+        vehicleCoordinates.keys.first { it.id == 0 }
+    }
+
+    private val redVehicleDistanceFromExit by lazy {
+        vehicleCoordinates[redVehicle]!!.distanceFrom(
+            EXIT,
+            redVehicle.axis
+        ) - (redVehicle.length - 1)
+    }
+
+    override val nextPossibleStates: Iterable<Pair<DirectedEdge.Action, Node.State>>
+        get() = computeNextPossibleStates()
+
+    private fun computeNextPossibleStates(): Iterable<Pair<DirectedEdge.Action, Node.State>> {
+        return sequence {
+            vehicleCoordinates.forEach { (vehicle, _) ->
+                Direction.values()
+                    .filter { vehicle.canGo(it) }
+                    .map { direction ->
+                        val previousCoordinates = vehicleCoordinates[vehicle]
+                        if (previousCoordinates != null) {
+                            val nextCoordinates = previousCoordinates.next(direction)
+                            val coordinatesToValidate = when (direction) {
+                                Direction.UP, Direction.LEFT -> nextCoordinates
+                                Direction.RIGHT, Direction.DOWN -> vehicle.maxCoordinatesFrom(nextCoordinates)
+                            }
+                            debug("Coordinates to validate $coordinatesToValidate")
+                            if (coordinatesToValidate.areValid && areEmpty(coordinatesToValidate, vehicle)) {
+                                val nextState = with(vehicle).at(nextCoordinates)
+                                yield(Action(vehicle.id, direction) to nextState)
+                            }
+                        }
+                    }
+            }
+        }.toList()
+    }
+
+    override val minimumCostToFinalState: Int get() = redVehicleDistanceFromExit // TODO prendre en compte les vehicules barrant la route
 }
