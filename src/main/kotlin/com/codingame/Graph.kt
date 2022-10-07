@@ -49,6 +49,9 @@ class DirectedGraph(private val root: Node) {
 @JvmInline
 value class Path(private val edges: List<DirectedEdge>) {
     operator fun get(i: Int): DirectedEdge = edges[i]
+    fun subPath(i: Int): Path {
+        return Path(edges.subList(i, edges.size))
+    }
 }
 
 abstract class SearchAlgorithm(val state: Node.State, val maxDepth: Int) {
