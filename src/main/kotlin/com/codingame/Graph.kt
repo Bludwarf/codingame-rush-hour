@@ -2,16 +2,25 @@ package com.codingame
 
 import java.util.*
 
-interface State {
-    val isFinal: Boolean
-    val nextPossibleStates: Iterable<State>
-    val minimumCostToFinalState: Int
-    override fun equals(other: Any?): Boolean
-}
-
 data class Node(val state: State, val depth: Int = 0, val value: Int = 0) : Comparable<Node> {
+
+    interface State {
+        val isFinal: Boolean
+        val nextPossibleStates: Iterable<Pair<DirectedEdge.Action, State>>
+        val minimumCostToFinalState: Int
+        override fun equals(other: Any?): Boolean
+    }
+
     override fun compareTo(other: Node): Int {
         return compareValues(value, other.value)
+    }
+}
+
+data class DirectedEdge(val source: Node, val action: Action, val target: Node) {
+    interface Action
+
+    override fun toString(): String {
+        return "$source -> $target"
     }
 }
 
@@ -19,32 +28,30 @@ data class SearchResult(val graph: DirectedGraph, val target: Node)
 
 class DirectedGraph(private val root: Node) {
 
-    private val parents = mutableMapOf<Node, Node>()
+    private val incomingEdges = mutableMapOf<Node, DirectedEdge>()
 
-    private fun add(parentNode: Node, node: Node) {
-        parents[node] = parentNode
+    operator fun plusAssign(edge: DirectedEdge) {
+        incomingEdges[edge.target] = edge
     }
-
-    operator fun plusAssign(pair: Pair<Node, Node>) = add(pair.first, pair.second)
 
     fun pathTo(target: Node): Path {
         var current = target
-        val nodes = mutableListOf<Node>()
-        while (current != root) {
-            nodes += current
-            current = parents[current] ?: throw Throwable("Don't know the parent of $current")
-        }
-        nodes += root
-        return Path(nodes.reversed())
+        val edges = mutableListOf<DirectedEdge>()
+        do {
+            val incomingEdge = incomingEdges[current] ?: throw Throwable("Don't know the incoming edge of $current")
+            edges += incomingEdge
+            current = incomingEdge.source
+        } while (current != root)
+        return Path(edges.reversed())
     }
 }
 
 @JvmInline
-value class Path(private val nodes: List<Node>) {
-    operator fun get(i: Int): Node = nodes[i]
+value class Path(private val edges: List<DirectedEdge>) {
+    operator fun get(i: Int): DirectedEdge = edges[i]
 }
 
-abstract class SearchAlgorithm(val state: State, val maxDepth: Int) {
+abstract class SearchAlgorithm(val state: Node.State, val maxDepth: Int) {
 
     abstract fun launch(): SearchResult
     fun findPathToFinalState(): Path {
@@ -62,7 +69,7 @@ abstract class SearchAlgorithm(val state: State, val maxDepth: Int) {
 /**
  * Source : https://github.com/marvingfx/rush-hour-solver/blob/670d748cb1b76335e526e0d8772dce8803ffed57/src/algorithm/algorithm.py#L152
  */
-class BeamSearchAlgorithm(state: State, maxDepth: Int = 1000, private val width: Int = 2) :
+class BeamSearchAlgorithm(state: Node.State, maxDepth: Int = 1000, private val width: Int = 2) :
     SearchAlgorithm(state, maxDepth) {
 
     override fun launch(): SearchResult {
@@ -75,7 +82,7 @@ class BeamSearchAlgorithm(state: State, maxDepth: Int = 1000, private val width:
         }
 
         val queue: Queue<Node> = queue(root)
-        val visitedStates = mutableSetOf<State>()
+        val visitedStates = mutableSetOf<Node.State>()
 
         while (queue.isNotEmpty() && depth < maxDepth) {
             val currentNode = queue.poll()
@@ -83,19 +90,24 @@ class BeamSearchAlgorithm(state: State, maxDepth: Int = 1000, private val width:
 
             val beam = PriorityQueue<Node>()
 
-            for (childBoard in currentNode.state.nextPossibleStates) {
+            for ((action, childState) in currentNode.state.nextPossibleStates) {
 
-                if (childBoard !in visitedStates) {
-                    visitedStates += childBoard
+                if (childState !in visitedStates) {
+                    visitedStates += childState
                     val node = Node(
-                        state = childBoard,
+                        state = childState,
                         depth = depth + 1,
-                        value = childBoard.minimumCostToFinalState + depth,
+                        value = childState.minimumCostToFinalState + depth,
                     )
-                    graph += currentNode to node
+                    val edge = DirectedEdge(
+                        source = currentNode,
+                        action = action,
+                        target = node
+                    )
+                    graph += edge
                     beam += node
 
-                    if (childBoard.isFinal) {
+                    if (childState.isFinal) {
                         return SearchResult(graph, node)
                     }
                 }
@@ -109,11 +121,14 @@ class BeamSearchAlgorithm(state: State, maxDepth: Int = 1000, private val width:
 
 }
 
-class SampleState(private val value: Int) : State {
+class SampleState(private val value: Int) : Node.State {
     override val isFinal: Boolean
         get() = value == 10
-    override val nextPossibleStates: Iterable<SampleState>
-        get() = listOf(SampleState(value - 1), SampleState(value + 1))
+    override val nextPossibleStates: Iterable<Pair<DirectedEdge.Action, Node.State>>
+        get() = listOf(
+            SampleAction.DEC to SampleState(value - 1),
+            SampleAction.INC to SampleState(value + 1)
+        )
     override val minimumCostToFinalState: Int
         get() = 0
 
@@ -137,9 +152,14 @@ class SampleState(private val value: Int) : State {
 
 }
 
+enum class SampleAction: DirectedEdge.Action {
+    INC, DEC
+}
+
 fun main() {
     val initialState = SampleState(0)
     val algorithm = BeamSearchAlgorithm(initialState)
     val path = algorithm.findPathToFinalState()
+    path[0].action
 }
 
