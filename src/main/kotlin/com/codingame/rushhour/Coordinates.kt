@@ -2,7 +2,7 @@ package com.codingame.rushhour
 
 import java.lang.Math.abs
 
-data class Coordinates(val x: Int, val y: Int) : Comparable<Coordinates> {
+data class Coordinates(val x: Int, val y: Int) {
     fun next(direction: Direction): Coordinates {
         return when (direction) {
             Direction.UP -> Coordinates(x, y - 1)
@@ -10,12 +10,6 @@ data class Coordinates(val x: Int, val y: Int) : Comparable<Coordinates> {
             Direction.DOWN -> Coordinates(x, y + 1)
             Direction.LEFT -> Coordinates(x - 1, y)
         }
-    }
-
-    override fun compareTo(other: Coordinates): Int {
-        return if (this == other) 0
-        else if (x <= other.x && y <= other.y) -1
-        else 1
     }
 
     override fun toString(): String {
@@ -27,10 +21,10 @@ data class Coordinates(val x: Int, val y: Int) : Comparable<Coordinates> {
         val MAX = Coordinates(5, 5)
     }
 
-    val areValid by lazy { this in MIN..MAX }
+    val areValid by lazy { x in MIN.x..MAX.x && y in MIN.y..MAX.y }
 
     fun distanceFrom(other: Coordinates, axis: Axis): Int {
-        return when(axis) {
+        return when (axis) {
             Axis.HORIZONTAL -> kotlin.math.abs(x - other.x)
             Axis.VERTICAL -> kotlin.math.abs(y - other.y)
         }

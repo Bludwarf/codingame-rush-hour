@@ -18,16 +18,14 @@ class Vehicle(val id: Int, val length: Int, val axis: Axis) {
         return id.toString()
     }
 
-    fun canGo(direction: Direction): Boolean = direction.isOn(axis)
     fun allCoordinatesFrom(minCoordinates: Coordinates): Sequence<Coordinates> {
         return sequence {
-            yield(minCoordinates)
-
-            var coordinates: Coordinates
+            var coordinates = minCoordinates
+            yield(coordinates)
             repeat(length - 1) {
                 coordinates = when (axis) {
-                    Axis.HORIZONTAL -> minCoordinates.next(Direction.RIGHT)
-                    Axis.VERTICAL -> minCoordinates.next(Direction.DOWN)
+                    Axis.HORIZONTAL -> coordinates.next(Direction.RIGHT)
+                    Axis.VERTICAL -> coordinates.next(Direction.DOWN)
                 }
                 yield(coordinates)
             }

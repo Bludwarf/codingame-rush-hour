@@ -26,6 +26,7 @@ fun main(args: Array<String>) {
         }.toMap()
 
         val initialState = State(vehiclesCoordinates)
+        debug(initialState)
         val actionResolver = ActionResolver(initialState)
         val action = actionResolver.resolveNextAction()
         println(action)

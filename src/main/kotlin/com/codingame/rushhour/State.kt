@@ -7,16 +7,18 @@ import debug
 val EXIT = Coordinates(Coordinates.MAX.x, Coordinates.MAX.y / 2)
 
 data class State(val vehicleCoordinates: Map<Vehicle, Coordinates>) : Node.State {
-    fun with(vehicle: Vehicle): Builder {
+    private fun with(vehicle: Vehicle): Builder {
         return Builder(vehicle)
     }
 
-    fun areEmpty(coordinates: Coordinates, excludedVehicle: Vehicle): Boolean {
-        return vehicleCoordinates
-            .filter { (vehicle, _) -> vehicle != excludedVehicle }
-            .none { (vehicle, vehicleCoordinates) ->
-                vehicle.allCoordinatesFrom(vehicleCoordinates).any { it == coordinates }
-            }
+    private fun areEmpty(coordinates: Coordinates): Boolean {
+        return (coordinates !in notEmptyCoordinatesExceptRedVehicle)
+    }
+
+    private val notEmptyCoordinatesExceptRedVehicle: Set<Coordinates> by lazy {
+        vehicleCoordinates
+            .filterNot { it.key == redVehicle }
+            .flatMap { (vehicle, coordinates) -> vehicle.allCoordinatesFrom(coordinates) }.toSet()
     }
 
     inner class Builder(private val vehicle: Vehicle) {
@@ -52,7 +54,7 @@ data class State(val vehicleCoordinates: Map<Vehicle, Coordinates>) : Node.State
         return sequence {
             vehicleCoordinates.forEach { (vehicle, _) ->
                 Direction.values()
-                    .filter { vehicle.canGo(it) }
+                    .filter { it.isOn(vehicle.axis) }
                     .map { direction ->
                         val previousCoordinates = vehicleCoordinates[vehicle]
                         if (previousCoordinates != null) {
@@ -61,8 +63,7 @@ data class State(val vehicleCoordinates: Map<Vehicle, Coordinates>) : Node.State
                                 Direction.UP, Direction.LEFT -> nextCoordinates
                                 Direction.RIGHT, Direction.DOWN -> vehicle.maxCoordinatesFrom(nextCoordinates)
                             }
-                            debug("Coordinates to validate $coordinatesToValidate")
-                            if (coordinatesToValidate.areValid && areEmpty(coordinatesToValidate, vehicle)) {
+                            if (coordinatesToValidate.areValid && areEmpty(coordinatesToValidate)) {
                                 val nextState = with(vehicle).at(nextCoordinates)
                                 yield(Action(vehicle.id, direction) to nextState)
                             }
@@ -73,4 +74,22 @@ data class State(val vehicleCoordinates: Map<Vehicle, Coordinates>) : Node.State
     }
 
     override val minimumCostToFinalState: Int get() = redVehicleDistanceFromExit // TODO prendre en compte les vehicules barrant la route
+
+    override fun toString(): String {
+        return sequence {
+            for (y in Coordinates.MIN.y..Coordinates.MAX.y) {
+                for (x in Coordinates.MIN.x..Coordinates.MAX.x) {
+                    val coordinates = Coordinates(x, y)
+                    yield(
+                        if (areEmpty(coordinates)) {
+                            ' '
+                        } else {
+                            '#'
+                        }
+                    )
+                }
+                yield('\n')
+            }
+        }.joinToString("")
+    }
 }

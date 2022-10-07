@@ -9,8 +9,8 @@ internal class VehicleTest {
 
     @Test
     fun maxCoordinatesFrom() {
-        val vehicle = Vehicle(1, 2, Axis.VERTICAL)
-        val minCoordinates = Coordinates(4,4)
+        val vehicle = Vehicle(1, 3, Axis.VERTICAL)
+        val minCoordinates = Coordinates(4,3)
         Assertions.assertThat(vehicle.maxCoordinatesFrom(minCoordinates)).isEqualTo(Coordinates(4,5))
     }
 }
