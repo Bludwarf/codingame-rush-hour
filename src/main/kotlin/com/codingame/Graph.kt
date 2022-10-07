@@ -2,38 +2,34 @@ package com.codingame
 
 import java.util.*
 
-interface NodeState<SELF : NodeState<SELF>> {
+interface State {
     val isFinal: Boolean
-    val nextPossibleStates: Iterable<SELF>
+    val nextPossibleStates: Iterable<State>
     val minimumCostToFinalState: Int
     override fun equals(other: Any?): Boolean
 }
 
-data class Node<State>(val state: State, val depth: Int = 0, val value: Int = 0) : Comparable<Node<*>> {
-    override fun compareTo(other: Node<*>): Int {
+data class Node(val state: State, val depth: Int = 0, val value: Int = 0) : Comparable<Node> {
+    override fun compareTo(other: Node): Int {
         return compareValues(value, other.value)
     }
 }
 
-data class SearchResult<STATE : NodeState<STATE>>(val graph: DirectedGraph<STATE>, val target: Node<STATE>)
+data class SearchResult(val graph: DirectedGraph, val target: Node)
 
-private fun <State> queue(root: Node<State>): Queue<Node<State>> {
-    return LinkedList<Node<State>>().let { it.add(root); it }
-}
+class DirectedGraph(private val root: Node) {
 
-class DirectedGraph<STATE : NodeState<STATE>>(private val root: Node<STATE>) {
+    private val parents = mutableMapOf<Node, Node>()
 
-    private val parents = mutableMapOf<Node<STATE>, Node<STATE>>()
-
-    private fun add(parentNode: Node<STATE>, node: Node<STATE>) {
+    private fun add(parentNode: Node, node: Node) {
         parents[node] = parentNode
     }
 
-    operator fun plusAssign(pair: Pair<Node<STATE>, Node<STATE>>) = add(pair.first, pair.second)
+    operator fun plusAssign(pair: Pair<Node, Node>) = add(pair.first, pair.second)
 
-    fun pathTo(target: Node<STATE>): Path<STATE> {
+    fun pathTo(target: Node): Path {
         var current = target
-        val nodes = mutableListOf<Node<STATE>>()
+        val nodes = mutableListOf<Node>()
         while (current != root) {
             nodes += current
             current = parents[current] ?: throw Throwable("Don't know the parent of $current")
@@ -44,41 +40,48 @@ class DirectedGraph<STATE : NodeState<STATE>>(private val root: Node<STATE>) {
 }
 
 @JvmInline
-value class Path<STATE : NodeState<STATE>>(val nodes: List<Node<STATE>>) {
-    operator fun get(i: Int): Node<STATE> = nodes[i]
+value class Path(private val nodes: List<Node>) {
+    operator fun get(i: Int): Node = nodes[i]
 }
 
-abstract class SearchAlgorithm<STATE : NodeState<STATE>>(val board: STATE, val maxDepth: Int) {
-    abstract fun launch(): SearchResult<STATE>
-    fun findPathToFinalState(): Path<STATE> {
+abstract class SearchAlgorithm(val state: State, val maxDepth: Int) {
+
+    abstract fun launch(): SearchResult
+    fun findPathToFinalState(): Path {
         val (graph, target) = launch()
         return graph.pathTo(target)
+    }
+
+    companion object {
+        fun queue(root: Node): Queue<Node> {
+            return LinkedList<Node>().let { it.add(root); it }
+        }
     }
 }
 
 /**
  * Source : https://github.com/marvingfx/rush-hour-solver/blob/670d748cb1b76335e526e0d8772dce8803ffed57/src/algorithm/algorithm.py#L152
  */
-class BeamSearchAlgorithm<STATE : NodeState<STATE>>(state: STATE, maxDepth: Int = 1000, private val width: Int = 2) :
-    SearchAlgorithm<STATE>(state, maxDepth) {
+class BeamSearchAlgorithm(state: State, maxDepth: Int = 1000, private val width: Int = 2) :
+    SearchAlgorithm(state, maxDepth) {
 
-    override fun launch(): SearchResult<STATE> {
+    override fun launch(): SearchResult {
         var depth = 0
-        val root = Node(board, depth)
+        val root = Node(state, depth)
         val graph = DirectedGraph(root)
 
         if (root.state.isFinal) {
             return SearchResult(graph, root)
         }
 
-        val queue: Queue<Node<STATE>> = queue(root)
-        val visitedStates = mutableSetOf<STATE>()
+        val queue: Queue<Node> = queue(root)
+        val visitedStates = mutableSetOf<State>()
 
         while (queue.isNotEmpty() && depth < maxDepth) {
             val currentNode = queue.poll()
             depth = currentNode.depth
 
-            val beam = PriorityQueue<Node<STATE>>()
+            val beam = PriorityQueue<Node>()
 
             for (childBoard in currentNode.state.nextPossibleStates) {
 
@@ -106,7 +109,7 @@ class BeamSearchAlgorithm<STATE : NodeState<STATE>>(state: STATE, maxDepth: Int 
 
 }
 
-class SampleState(private val value: Int) : NodeState<SampleState> {
+class SampleState(private val value: Int) : State {
     override val isFinal: Boolean
         get() = value == 10
     override val nextPossibleStates: Iterable<SampleState>
