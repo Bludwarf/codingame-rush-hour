@@ -2,7 +2,6 @@ package com.codingame.rushhour
 
 import com.codingame.DirectedEdge
 import com.codingame.Node
-import debug
 
 val EXIT = Coordinates(Coordinates.MAX.x, Coordinates.MAX.y / 2)
 
@@ -11,14 +10,13 @@ data class State(val vehicleCoordinates: Map<Vehicle, Coordinates>) : Node.State
         return Builder(vehicle)
     }
 
-    private fun areEmpty(coordinates: Coordinates): Boolean {
-        return (coordinates !in notEmptyCoordinatesExceptRedVehicle)
+    private fun areEmpty(coordinates: Coordinates, vehicle: Vehicle? = null): Boolean {
+        val notEmptyCoordinatesForVehicle = notEmptyCoordinates - vehicleCoordinates[vehicle]
+        return (coordinates !in notEmptyCoordinatesForVehicle)
     }
 
-    private val notEmptyCoordinatesExceptRedVehicle: Set<Coordinates> by lazy {
-        vehicleCoordinates
-            .filterNot { it.key == redVehicle }
-            .flatMap { (vehicle, coordinates) -> vehicle.allCoordinatesFrom(coordinates) }.toSet()
+    private val notEmptyCoordinates: Set<Coordinates> by lazy {
+        vehicleCoordinates.flatMap { (vehicle, coordinates) -> vehicle.allCoordinatesFrom(coordinates) }.toSet()
     }
 
     inner class Builder(private val vehicle: Vehicle) {
@@ -63,7 +61,7 @@ data class State(val vehicleCoordinates: Map<Vehicle, Coordinates>) : Node.State
                                 Direction.UP, Direction.LEFT -> nextCoordinates
                                 Direction.RIGHT, Direction.DOWN -> vehicle.maxCoordinatesFrom(nextCoordinates)
                             }
-                            if (coordinatesToValidate.areValid && areEmpty(coordinatesToValidate)) {
+                            if (coordinatesToValidate.areValid && areEmpty(coordinatesToValidate, vehicle)) {
                                 val nextState = with(vehicle).at(nextCoordinates)
                                 yield(Action(vehicle.id, direction) to nextState)
                             }
